@@ -16,12 +16,12 @@ const appShell = document.querySelector('#app-shell');
 const authNote = document.querySelector('#auth-note');
 
 document.querySelector('#google-sign-in').addEventListener('click', async () => {
-  authNote.textContent = 'Opening Google sign-in…';
+  authNote.textContent = 'Redirecting to Google sign-in…';
   authNote.classList.remove('error');
   try {
-    await auth.signInWithPopup(googleProvider);
+    await auth.signInWithRedirect(googleProvider);
   } catch (error) {
-    authNote.textContent = error.code === 'auth/popup-blocked' ? 'Please allow popups and try again.' : 'Sign-in could not be completed. Try again.';
+    authNote.textContent = 'Sign-in could not be started. Check your connection and try again.';
     authNote.classList.add('error');
   }
 });
