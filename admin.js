@@ -99,13 +99,13 @@ function subscribeToLiveData() {
   }, (error) => showToast(`Live player data unavailable: ${error.code || 'error'}`));
 
   unsubscribeMatches = db.collection('sessions').orderBy('createdAt', 'desc').limit(50).onSnapshot((snapshot) => {
-    matches = snapshot.docs.map((doc, index) => {
+    matches = snapshot.docs.map((doc) => {
       const data = doc.data();
       const startedAt = data.createdAt?.toDate?.() || null;
       const player = players.find((item) => item.uid === data.playerUid);
       const playerName = player?.name || `Player ${(data.playerUid || '').slice(0, 6)}`;
       return {
-        id: `#FT-${String(snapshot.docs.length - index).padStart(4, '0')}`,
+        id: `#${doc.id.slice(0, 8).toUpperCase()}`,
         playersText: `${playerName} · ${data.opponentName || 'AI opponent'}`,
         winner: data.won ? playerName : (data.opponentName || 'AI opponent'),
         opponentName: data.opponentName || 'AI opponent',
@@ -152,22 +152,34 @@ const fmt = (num) => new Intl.NumberFormat('en-US').format(num);
 
 function renderLeaderboard() {
   document.querySelector('#leaderboard-body').innerHTML = players.slice().sort((a, b) => b.rating - a.rating).slice(0, 5).map((player, index) => `
-    <tr><td><span class="rank">${index + 1}</span></td><td><div class="player-cell">${avatar(player.initials, player.color)}${player.name}</div></td><td class="rating">${player.rating}</td><td class="streak">${player.streak ? `★ ${player.streak}d` : '—'}</td><td>${player.playTime}</td><td>${fmt(player.points)}</td><td>${player.active}</td><td><button class="table-action" aria-label="Open ${player.name}">···</button></td></tr>`).join('');
+    <tr><td><span class="rank">${index + 1}</span></td><td><div class="player-cell">${avatar(escapeHtml(player.initials), player.color)}${escapeHtml(player.name)}</div></td><td class="rating">${player.rating}</td><td class="streak">${player.streak ? `★ ${player.streak}d` : '—'}</td><td>${escapeHtml(player.playTime)}</td><td>${fmt(player.points)}</td><td>${escapeHtml(player.active)}</td><td><button class="table-action" aria-label="Open ${escapeHtml(player.name)}">···</button></td></tr>`).join('') || '<tr><td colspan="8" class="empty-state">No live players yet</td></tr>';
 }
 
 function renderPlayers(query = '') {
   const filtered = players.filter((player) => player.name.toLowerCase().includes(query.toLowerCase()));
   document.querySelector('#players-body').innerHTML = filtered.map((player) => `
-    <tr><td><div class="player-cell">${avatar(player.initials, player.color)}${player.name}</div></td><td class="rating">${player.rating}</td><td>Lvl ${player.level}</td><td class="streak">${player.streak ? `★ ${player.streak} days` : '—'}</td><td>${player.playTime}</td><td>${player.matches}</td><td>${player.active}</td><td><span class="tag ${player.status === 'Online' ? 'live' : 'archived'}">${player.status}</span></td></tr>`).join('') || '<tr><td colspan="8" class="empty-state">No players found</td></tr>';
+    <tr><td><div class="player-cell">${avatar(escapeHtml(player.initials), player.color)}${escapeHtml(player.name)}</div></td><td class="rating">${player.rating}</td><td>Lvl ${player.level}</td><td class="streak">${player.streak ? `★ ${player.streak} days` : '—'}</td><td>${escapeHtml(player.playTime)}</td><td>${player.matches}</td><td>${escapeHtml(player.active)}</td><td><span class="tag ${player.status === 'Online' ? 'live' : 'archived'}">${escapeHtml(player.status)}</span></td></tr>`).join('') || '<tr><td colspan="8" class="empty-state">No players found</td></tr>';
 }
 
 function renderActivity() {
   const recent = matches.slice(0, 5);
-  document.querySelector('#activity-list').innerHTML = recent.map((match) => `<div class="activity-item"><span class="activity-bullet gold">◆</span><div><strong>${match.winner} won a match</strong><span>${match.score} against ${match.opponentName}</span></div><span class="activity-time">${match.started}</span></div>`).join('') || '<div class="empty-state">No live activity yet</div>';
+  document.querySelector('#activity-list').innerHTML = recent.map((match) => `<div class="activity-item"><span class="activity-bullet gold">◆</span><div><strong>${escapeHtml(match.winner)} won a match</strong><span>${escapeHtml(match.score)} against ${escapeHtml(match.opponentName)}</span></div><span class="activity-time">${escapeHtml(match.started)}</span></div>`).join('') || '<div class="empty-state">No live activity yet</div>';
 }
 
 function renderMatches() {
-  document.querySelector('#matches-body').innerHTML = matches.map((match) => `<tr><td class="rating">${match.id}</td><td>${match.playersText}</td><td>${match.winner}</td><td>${match.score}</td><td>—</td><td>${match.started}</td><td><span class="tag scheduled">Completed</span></td></tr>`).join('') || '<tr><td colspan="7" class="empty-state">No live matches yet</td></tr>';
+  document.querySelector('#matches-body').innerHTML = matches.map((match) => `<tr><td class="rating">${escapeHtml(match.id)}</td><td>${escapeHtml(match.playersText)}</td><td>${escapeHtml(match.winner)}</td><td>${escapeHtml(match.score)}</td><td>—</td><td>${escapeHtml(match.started)}</td><td><span class="tag scheduled">Completed</span></td></tr>`).join('') || '<tr><td colspan="7" class="empty-state">No live matches yet</td></tr>';
+}
+
+function exportPlayers() {
+  const rows = [['Player', 'Rating', 'Level', 'Streak', 'Play time ms', 'Matches', 'Points', 'Last active']];
+  players.forEach((player) => rows.push([player.name, player.rating, player.level, player.streak, player.playTimeMs, player.matches, player.points, player.lastActive?.toISOString?.() || '']));
+  const csv = rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n');
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  link.download = `fives-and-threes-players-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  showToast('Live player report exported');
 }
 
 function showToast(message) {
@@ -195,15 +207,11 @@ document.addEventListener('click', (event) => {
     document.querySelector('#last-sync').textContent = 'just now';
     showToast('Dashboard data refreshed');
   }
-  if (event.target.closest('#export-button')) showToast('Report ready — local export simulated');
-  if (event.target.closest('#add-player')) showToast('Test player added to the local preview');
-  if (event.target.closest('#save-content')) showToast('Content settings saved locally');
-  if (event.target.closest('#compose-notification')) showToast('Notification composer is ready');
-  if (event.target.closest('#send-test')) showToast('Test notification queued locally');
+  if (event.target.closest('#export-button')) exportPlayers();
 });
 
 document.querySelector('#player-search').addEventListener('input', (event) => renderPlayers(event.target.value));
-document.querySelector('#chart-range').addEventListener('change', (event) => showToast(`Showing ${event.target.value.toLowerCase()}`));
+document.querySelector('#panel-date').textContent = new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }).format(new Date());
 
 renderLeaderboard();
 renderPlayers();
