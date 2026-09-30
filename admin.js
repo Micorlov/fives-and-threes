@@ -41,6 +41,15 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
+auth.getRedirectResult().catch((error) => {
+  if (error?.code) {
+    authNote.textContent = error.code === 'auth/unauthorized-domain'
+      ? 'This website is not authorized for sign-in yet.'
+      : `Google sign-in failed (${error.code.replace('auth/', '')}).`;
+    authNote.classList.add('error');
+  }
+});
+
 const players = [
   { name: 'Michael Orlov', initials: 'MO', rating: 1286, level: 18, streak: 12, playTime: '9h 24m', matches: 48, points: 2840, active: '2m ago', status: 'Online', color: 'gold' },
   { name: 'Bella Theriault', initials: 'BT', rating: 1214, level: 15, streak: 7, playTime: '7h 16m', matches: 39, points: 2190, active: '8m ago', status: 'Online', color: 'rose' },
