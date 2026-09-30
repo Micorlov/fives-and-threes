@@ -56,10 +56,10 @@
           <div class="welcome-row"><div><h3>Good evening, Michael <span>✦</span></h3><p>Your table is lively today. Here’s what’s happening across Fives &amp; Threes.</p></div><div class="date-chip"><span class="calendar-icon">▣</span><span>September 30, 2026</span></div></div>
 
           <div class="metric-grid">
-            <article class="metric-card accent-green"><div class="metric-heading"><span>DAILY ACTIVE PLAYERS</span><span class="metric-icon">♙</span></div><strong class="metric-value">18</strong><div class="metric-trend up">↑ 38% <span>vs yesterday</span></div><div class="sparkline green-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
-            <article class="metric-card accent-gold"><div class="metric-heading"><span>MATCHES PLAYED</span><span class="metric-icon">◆</span></div><strong class="metric-value">126</strong><div class="metric-trend up">↑ 14% <span>vs yesterday</span></div><div class="sparkline gold-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
-            <article class="metric-card accent-blue"><div class="metric-heading"><span>AVG. SESSION</span><span class="metric-icon">◷</span></div><strong class="metric-value">12m <small>48s</small></strong><div class="metric-trend down">↓ 3% <span>vs yesterday</span></div><div class="sparkline blue-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
-            <article class="metric-card accent-red"><div class="metric-heading"><span>CRASH-FREE SESSIONS</span><span class="metric-icon">♥</span></div><strong class="metric-value">99.8<small>%</small></strong><div class="metric-trend up">↑ 0.4% <span>this week</span></div><div class="sparkline red-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+            <article class="metric-card accent-green"><div class="metric-heading"><span>DAILY ACTIVE PLAYERS</span><span class="metric-icon">♙</span></div><strong class="metric-value" id="metric-active">0</strong><div class="metric-trend"><span>live Firestore data</span></div><div class="sparkline green-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+            <article class="metric-card accent-gold"><div class="metric-heading"><span>MATCHES PLAYED</span><span class="metric-icon">◆</span></div><strong class="metric-value" id="metric-matches">0</strong><div class="metric-trend"><span>live Firestore data</span></div><div class="sparkline gold-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+            <article class="metric-card accent-blue"><div class="metric-heading"><span>AVG. SESSION</span><span class="metric-icon">◷</span></div><strong class="metric-value" id="metric-session">0m <small>0s</small></strong><div class="metric-trend"><span>based on tracked play time</span></div><div class="sparkline blue-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+            <article class="metric-card accent-red"><div class="metric-heading"><span>CRASH-FREE SESSIONS</span><span class="metric-icon">♥</span></div><strong class="metric-value">—</strong><div class="metric-trend"><span>Crash reporting not connected</span></div><div class="sparkline red-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
           </div>
 
           <div class="content-grid">
@@ -82,12 +82,13 @@
 
         <section id="tab-health" class="tab-panel"><div class="section-heading"><div><p class="eyebrow">System status</p><h3>Health</h3><p>Everything looks healthy across the production game.</p></div><span class="healthy-pill"><span class="status-dot"></span> All systems operational</span></div><div class="health-grid"><article class="panel health-card"><span class="health-icon green">♥</span><div><h4>Crash-free sessions</h4><strong>99.8%</strong><p>+0.4% over the last 7 days</p></div><span class="health-check">✓</span></article><article class="panel health-card"><span class="health-icon blue">⌁</span><div><h4>App responsiveness</h4><strong>142 ms</strong><p>Median API response time</p></div><span class="health-check">✓</span></article><article class="panel health-card"><span class="health-icon gold">◆</span><div><h4>Latest release</h4><strong>1.2.1 · vc7</strong><p>Released 12 hours ago</p></div><span class="health-check">✓</span></article></div><article class="panel release-panel"><div class="panel-header"><div><p class="eyebrow">Release history</p><h3>Recent builds</h3></div><button class="text-button">View Play Console <span>↗</span></button></div><div class="release-row"><span class="release-version">1.2.1</span><div><strong>Production</strong><span>100% rollout · Sep 30, 2026</span></div><span class="tag live">Live</span></div><div class="release-row"><span class="release-version">1.2.0</span><div><strong>Production</strong><span>100% rollout · Sep 24, 2026</span></div><span class="tag archived">Archived</span></div></article></section>
 
-        <footer class="footer"><span>Fives &amp; Threes admin · Play Console app <code>4973132798846918365</code></span><span>Local panel · data is stored in this browser</span></footer>
+        <footer class="footer"><span>Fives &amp; Threes admin · Play Console app <code>4973132798846918365</code></span><span>Live data from Firebase Firestore</span></footer>
       </main>
     </div>
     <div class="toast" id="toast" role="status"></div>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-    <script src="./admin.js?v=b5d5c06"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <script src="./admin.js?v=live-firestore-1"></script>
   </body>
 </html>

@@ -10,10 +10,32 @@ const ALLOWED_EMAIL = 'micorlov@gmail.com';
 
 firebase.initializeApp(FIREBASE_CONFIG);
 const auth = firebase.auth();
+const db = firebase.firestore();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 const authGate = document.querySelector('#auth-gate');
 const appShell = document.querySelector('#app-shell');
 const authNote = document.querySelector('#auth-note');
+
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+const relativeTime = (date) => {
+  if (!date) return '—';
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+const formatDuration = (milliseconds) => {
+  const totalMinutes = Math.floor((milliseconds || 0) / 60000);
+  return `${Math.floor(totalMinutes / 60)}h ${String(totalMinutes % 60).padStart(2, '0')}m`;
+};
+const levelForXp = (xp) => {
+  let level = 1;
+  while (level < 200 && xp >= (level * 500) + (250 * level * (level - 1)) / 2) level += 1;
+  return level;
+};
 
 document.querySelector('#google-sign-in').addEventListener('click', async () => {
   authNote.textContent = 'Redirecting to Google sign-in…';
@@ -30,8 +52,13 @@ auth.onAuthStateChanged(async (user) => {
   if (user?.email?.toLowerCase() === ALLOWED_EMAIL) {
     authGate.style.display = 'none';
     appShell.classList.add('authenticated');
+    subscribeToLiveData();
     return;
   }
+  unsubscribeUsers?.();
+  unsubscribeMatches?.();
+  unsubscribeUsers = null;
+  unsubscribeMatches = null;
   appShell.classList.remove('authenticated');
   authGate.style.display = 'grid';
   if (user) {
@@ -40,6 +67,70 @@ auth.onAuthStateChanged(async (user) => {
     await auth.signOut();
   }
 });
+
+function subscribeToLiveData() {
+  unsubscribeUsers?.();
+  unsubscribeMatches?.();
+  unsubscribeUsers = db.collection('users').onSnapshot((snapshot) => {
+    players = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      const profile = data.profile || {};
+      const stats = data.stats || {};
+      const lastActive = data.lastActiveAt?.toDate?.() || null;
+      const activeRecently = lastActive && Date.now() - lastActive.getTime() < 5 * 60 * 1000;
+      return {
+        uid: doc.id,
+        name: data.displayName || `Player ${doc.id.slice(0, 6)}`,
+        initials: (data.displayName || 'P').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
+        rating: profile.rating || 0,
+        level: levelForXp(profile.xp || 0),
+        streak: profile.streak?.current || 0,
+        playTime: formatDuration(data.playTimeMs || 0),
+        playTimeMs: data.playTimeMs || 0,
+        matches: stats.matchesPlayed || 0,
+        points: profile.points || 0,
+        active: relativeTime(lastActive),
+        status: activeRecently ? 'Online' : 'Offline',
+        color: 'green',
+        lastActive,
+      };
+    });
+    renderAllLiveData();
+  }, (error) => showToast(`Live player data unavailable: ${error.code || 'error'}`));
+
+  unsubscribeMatches = db.collection('sessions').orderBy('createdAt', 'desc').limit(50).onSnapshot((snapshot) => {
+    matches = snapshot.docs.map((doc, index) => {
+      const data = doc.data();
+      const startedAt = data.createdAt?.toDate?.() || null;
+      const player = players.find((item) => item.uid === data.playerUid);
+      const playerName = player?.name || `Player ${(data.playerUid || '').slice(0, 6)}`;
+      return {
+        id: `#FT-${String(snapshot.docs.length - index).padStart(4, '0')}`,
+        playersText: `${playerName} · ${data.opponentName || 'AI opponent'}`,
+        winner: data.won ? playerName : (data.opponentName || 'AI opponent'),
+        opponentName: data.opponentName || 'AI opponent',
+        score: `${data.score?.player ?? 0} — ${data.score?.opponent ?? 0}`,
+        started: relativeTime(startedAt),
+      };
+    });
+    renderAllLiveData();
+  }, (error) => showToast(`Live match data unavailable: ${error.code || 'error'}`));
+}
+
+function renderAllLiveData() {
+  renderLeaderboard();
+  renderPlayers();
+  renderActivity();
+  renderMatches();
+  const active = players.filter((player) => player.lastActive && Date.now() - player.lastActive.getTime() < 24 * 60 * 60 * 1000).length;
+  const totalPlayTime = players.reduce((sum, player) => sum + (player.playTimeMs || 0), 0);
+  document.querySelector('#metric-active').textContent = active;
+  document.querySelector('#metric-matches').textContent = players.reduce((sum, player) => sum + player.matches, 0);
+  const average = players.length ? totalPlayTime / players.length : 0;
+  const totalMinutes = Math.floor(average / 60000);
+  document.querySelector('#metric-session').innerHTML = `${Math.floor(totalMinutes / 60)}h <small>${String(totalMinutes % 60).padStart(2, '0')}m</small>`;
+  document.querySelector('#last-sync').textContent = 'just now';
+}
 
 auth.getRedirectResult().catch((error) => {
   if (error?.code) {
@@ -50,37 +141,17 @@ auth.getRedirectResult().catch((error) => {
   }
 });
 
-const players = [
-  { name: 'Michael Orlov', initials: 'MO', rating: 1286, level: 18, streak: 12, playTime: '9h 24m', matches: 48, points: 2840, active: '2m ago', status: 'Online', color: 'gold' },
-  { name: 'Bella Theriault', initials: 'BT', rating: 1214, level: 15, streak: 7, playTime: '7h 16m', matches: 39, points: 2190, active: '8m ago', status: 'Online', color: 'rose' },
-  { name: 'Josephine', initials: 'JO', rating: 1188, level: 13, streak: 4, playTime: '5h 42m', matches: 31, points: 1735, active: '18m ago', status: 'Online', color: 'blue' },
-  { name: 'Alec Snyder', initials: 'AS', rating: 1112, level: 10, streak: 2, playTime: '3h 08m', matches: 24, points: 990, active: '1h ago', status: 'Away', color: 'green' },
-  { name: 'Mikhail V.', initials: 'MV', rating: 1064, level: 8, streak: 0, playTime: '2h 11m', matches: 17, points: 612, active: '3h ago', status: 'Away', color: 'purple' },
-  { name: 'Kittie Hawks', initials: 'KH', rating: 982, level: 6, streak: 1, playTime: '58m', matches: 9, points: 288, active: 'Yesterday', status: 'Offline', color: 'slate' },
-];
-
-const activities = [
-  ['◆', 'Michael won a match', 'Score 121 — streak extended to 12 days', '2m ago', ''],
-  ['★', 'Bella claimed daily reward', 'Day 7 reward · +250 points', '8m ago', 'gold'],
-  ['▦', 'Josephine unlocked milestone', 'Century Club · 100 points in a match', '18m ago', 'blue'],
-  ['♙', 'Alec joined a new match', 'Playing against Mikhail V.', '1h ago', ''],
-  ['✦', 'New player registered', 'Welcome to the table, Rachel Hall', '2h ago', 'gold'],
-];
-
-const matches = [
-  ['#FT-0126', 'Michael Orlov · Bella Theriault', 'Michael Orlov', '121 — 88', '14m 22s', '2m ago', 'Completed'],
-  ['#FT-0125', 'Josephine · Alec Snyder', 'Josephine', '121 — 97', '18m 04s', '18m ago', 'Completed'],
-  ['#FT-0124', 'Mikhail V. · Kittie Hawks', 'Mikhail V.', '82 — 61', '9m 40s', '42m ago', 'Completed'],
-  ['#FT-0123', 'Michael Orlov · AI opponent', 'Michael Orlov', '121 — 64', '11m 09s', '1h ago', 'Completed'],
-  ['#FT-0122', 'Bella Theriault · AI opponent', '—', 'In progress', '—', '1h ago', 'Live'],
-];
+let players = [];
+let matches = [];
+let unsubscribeUsers = null;
+let unsubscribeMatches = null;
 
 const initials = (name) => name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 const avatar = (label, color = '') => `<span class="avatar player-avatar ${color ? `avatar-${color}` : ''}">${label}</span>`;
 const fmt = (num) => new Intl.NumberFormat('en-US').format(num);
 
 function renderLeaderboard() {
-  document.querySelector('#leaderboard-body').innerHTML = players.slice(0, 5).map((player, index) => `
+  document.querySelector('#leaderboard-body').innerHTML = players.slice().sort((a, b) => b.rating - a.rating).slice(0, 5).map((player, index) => `
     <tr><td><span class="rank">${index + 1}</span></td><td><div class="player-cell">${avatar(player.initials, player.color)}${player.name}</div></td><td class="rating">${player.rating}</td><td class="streak">${player.streak ? `★ ${player.streak}d` : '—'}</td><td>${player.playTime}</td><td>${fmt(player.points)}</td><td>${player.active}</td><td><button class="table-action" aria-label="Open ${player.name}">···</button></td></tr>`).join('');
 }
 
@@ -91,11 +162,12 @@ function renderPlayers(query = '') {
 }
 
 function renderActivity() {
-  document.querySelector('#activity-list').innerHTML = activities.map(([icon, title, detail, time, tone]) => `<div class="activity-item"><span class="activity-bullet ${tone}">${icon}</span><div><strong>${title}</strong><span>${detail}</span></div><span class="activity-time">${time}</span></div>`).join('');
+  const recent = matches.slice(0, 5);
+  document.querySelector('#activity-list').innerHTML = recent.map((match) => `<div class="activity-item"><span class="activity-bullet gold">◆</span><div><strong>${match.winner} won a match</strong><span>${match.score} against ${match.opponentName}</span></div><span class="activity-time">${match.started}</span></div>`).join('') || '<div class="empty-state">No live activity yet</div>';
 }
 
 function renderMatches() {
-  document.querySelector('#matches-body').innerHTML = matches.map(([id, playersText, winner, score, duration, started, result]) => `<tr><td class="rating">${id}</td><td>${playersText}</td><td>${winner}</td><td>${score}</td><td>${duration}</td><td>${started}</td><td><span class="tag ${result === 'Live' ? 'live' : 'scheduled'}">${result}</span></td></tr>`).join('');
+  document.querySelector('#matches-body').innerHTML = matches.map((match) => `<tr><td class="rating">${match.id}</td><td>${match.playersText}</td><td>${match.winner}</td><td>${match.score}</td><td>—</td><td>${match.started}</td><td><span class="tag scheduled">Completed</span></td></tr>`).join('') || '<tr><td colspan="7" class="empty-state">No live matches yet</td></tr>';
 }
 
 function showToast(message) {
