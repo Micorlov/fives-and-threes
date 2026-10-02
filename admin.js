@@ -41,7 +41,7 @@ document.querySelector('#google-sign-in').addEventListener('click', async () => 
   authNote.textContent = 'Redirecting to Google sign-in…';
   authNote.classList.remove('error');
   try {
-    await auth.signInWithRedirect(googleProvider);
+    await auth.signInWithPopup(googleProvider);
   } catch (error) {
     authNote.textContent = 'Sign-in could not be started. Check your connection and try again.';
     authNote.classList.add('error');
